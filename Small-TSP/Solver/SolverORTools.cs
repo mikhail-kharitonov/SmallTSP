@@ -1,21 +1,24 @@
 ﻿using Google.OrTools;
 using Google.OrTools.ConstraintSolver;
 using Small_TSP.DataModel;
+using Google.Protobuf.WellKnownTypes;
 namespace Small_TSP.Solver;
 
 public class SolverORTools
 {
     private static int _vehicleNumber = 1;
+    private static int _timeLimitSeconds = 1;
     
     private int GetDist(string arcFrom, string arcTo, List<ArcImprovedRoute> distanceMatrix)
     {
         int result = 0;
-        IEnumerable<ArcImprovedRoute> arcs = distanceMatrix.
-            Where(d => d.ArcFrom.Equals(arcFrom) && d.ArcTo.Equals(arcTo));
-
-        foreach (ArcImprovedRoute arc in arcs)
+        IEnumerable<int> distance = distanceMatrix
+            .Where(a => a.ArcFrom.Equals(arcFrom) && a.ArcTo.Equals(arcTo))
+            .Select(d => d.Distance);
+        
+        foreach (int d in distance)
         {
-            result =  arc.Distance;
+            result =  d;
         }
 
         return result;
@@ -24,21 +27,33 @@ public class SolverORTools
 
     public int[,] BuildDistanceMatrix(List<ArcImprovedRoute> distanceMatrix)
     {
-        HashSet<string> arcsFrom = new HashSet<string>();
-        HashSet<string> arcsTo = new HashSet<string>();
+        Dictionary<string, int> arcsFrom = new Dictionary<string, int>();
+        Dictionary<string, int> arcsTo = new Dictionary<string, int>();
+        
         int row = 0;
         int column = 0;
 
         foreach (ArcImprovedRoute arc in distanceMatrix)
         {
-            arcsFrom.Add(arc.ArcFrom);
-            arcsTo.Add(arc.ArcTo);
+            if (!arcsFrom.ContainsKey(arc.ArcFrom))
+            {
+                arcsFrom.Add(arc.ArcFrom, row);
+                row++;
+            }
+
+            if (!arcsTo.ContainsKey(arc.ArcTo))
+            {
+                arcsTo.Add(arc.ArcTo, column);
+                column++;
+            }
         }
         int[,] distance = new int[arcsFrom.Count, arcsTo.Count];
+        row = 0;
+        column = 0;
         
-        foreach (string arcFrom in arcsFrom)
+        foreach (string arcFrom in arcsFrom.Keys)
         {
-            foreach (string arcTo in arcsTo)
+            foreach (string arcTo in arcsTo.Keys)
             {
                 distance[row, column] = GetDist(arcFrom, arcTo, distanceMatrix);
                 column++;
@@ -63,6 +78,8 @@ public class SolverORTools
 
         RoutingSearchParameters searchParameters = operations_research_constraint_solver.DefaultRoutingSearchParameters();
         searchParameters.FirstSolutionStrategy = FirstSolutionStrategy.Types.Value.PathCheapestArc;
+        searchParameters.TimeLimit = new Duration { Seconds = _timeLimitSeconds };
+
         return routing.SolveWithParameters(searchParameters);
     }
 
@@ -89,11 +106,14 @@ public class SolverORTools
         return variables;
     }
 
-    public (int[,], long) GetSolution(List<ArcImprovedRoute> distanceMatrix, int startPoint)
+    public (int[,], long) GetSolution(List<ArcImprovedRoute> distanceMatrix, int startPoint, int endPoint)
     {
         int[,] distance = BuildDistanceMatrix(distanceMatrix);
         int count = distance.GetLength(0);
-        RoutingIndexManager manager = new RoutingIndexManager(count, _vehicleNumber, startPoint);
+        int[] starts = new int [1] { startPoint };
+        int[] ends = new int [1] { endPoint };
+        
+        RoutingIndexManager manager = new RoutingIndexManager(count, _vehicleNumber, starts, ends);
         RoutingModel routing = new RoutingModel(manager);
         Assignment solution = Solve(manager, routing, distance);
         int[,] variables = BuildVariables(routing, solution, distance);

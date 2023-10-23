@@ -18,7 +18,7 @@ class Program
 {
     public static void Main(string[] args)
     {
-        string fileName = "C://Users//mikhail//Axelot//Small-TSP//data/111.json";
+        string fileName = "/home/mikhail/RiderProjects/SmallTSP/data/111.json";
         IFileManager fileManager = new FileManager();
         string data = fileManager.Read(fileName);
         ISerializer serializer = new JsonDataManager();
@@ -39,7 +39,7 @@ class Program
         }
 
         
-        (int[,] solution, long objective) = solver.GetSolution(distanceMatrix, 0);
+        (int[,] solution, long objective) = solver.GetSolution(distanceMatrix, 0, 1);
 
         Console.WriteLine($"{objective}");
 
