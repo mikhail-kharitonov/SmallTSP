@@ -26,8 +26,10 @@ class Program
         List<ArcImprovedRoute> distanceMatrix = JsonConvert.DeserializeObject<List<ArcImprovedRoute>>(data);
 
         SolverORTools solver = new SolverORTools();
-        
-        int [,] dist = solver.BuildDistanceMatrix(distanceMatrix);
+        string maskStart = "55,809762_37,392311";
+        string maskEnd = "55,764592_37,877805";
+        /*
+        (int [,] dist, int start, int end)  = solver.BuildRouteData(distanceMatrix, maskStart, maskEnd);
 
         for (int i = 0; i < 16; i++)
         {
@@ -37,9 +39,9 @@ class Program
             }
             Console.Write("\n");
         }
-
-        
-        (int[,] solution, long objective) = solver.GetSolution(distanceMatrix, 0, 1);
+        */
+       
+        (int[,] solution, long objective) = solver.GetSolution(distanceMatrix, maskStart, maskEnd);
 
         Console.WriteLine($"{objective}");
 
