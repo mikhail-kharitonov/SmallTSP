@@ -113,7 +113,7 @@ public class SolverORTools
     {
         List<int> routeNumberPoints = new List<int>();
         long index = routing.Start(0);
-        while (routing.IsEnd(index) == false)
+        while (!routing.IsEnd(index))
         {
             routeNumberPoints.Add(manager.IndexToNode((int)index));
             index = solution.Value(routing.NextVar(index));
@@ -121,5 +121,4 @@ public class SolverORTools
         routeNumberPoints.Add(endPoint);
         return routeNumberPoints;
     }
-    
 }
