@@ -6,8 +6,8 @@ namespace Small_TSP.Solver;
 
 public class SolverORTools
 {
-    private static int _vehicleNumber = 1;
-    private static int _timeLimitSeconds = 1;
+    private static int _amountVehicles = 1;
+    private static int _timeLimitForSolutionSeconds = 1;
     
     private int GetDist(string arcFrom, string arcTo, List<ArcImprovedRoute> arcs)
     {
@@ -23,7 +23,7 @@ public class SolverORTools
         return result;
     }
 
-    public int[,] BuldDistance(Dictionary<string, int> arcsFrom, Dictionary<string, int> arcsTo, List<ArcImprovedRoute> arcs)
+    private int[,] BuldDistance(Dictionary<string, int> arcsFrom, Dictionary<string, int> arcsTo, List<ArcImprovedRoute> arcsImprovedRoutes)
     {
         int[,] distance = new int[arcsFrom.Count, arcsTo.Count];
         int row = 0;
@@ -33,18 +33,16 @@ public class SolverORTools
         {
             foreach (string arcTo in arcsTo.Keys)
             {
-                distance[row, column] = GetDist(arcFrom, arcTo, arcs);
+                distance[row, column] = GetDist(arcFrom, arcTo, arcsImprovedRoutes);
                 column++;
             }
             row++;
             column = 0;
         }
-
         return distance;
     }
-    
 
-    public (Dictionary<string, int> arcsFrom, Dictionary<string, int> arcsTo)  CreateNumbersPoints(List<ArcImprovedRoute> arcs)
+    private (Dictionary<string, int> arcsFrom, Dictionary<string, int> arcsTo)  CreateNumbersPoints(List<ArcImprovedRoute> arcsImprovedRoutes)
     {
         Dictionary<string, int> arcsFrom = new Dictionary<string, int>();
         Dictionary<string, int> arcsTo = new Dictionary<string, int>();
@@ -52,7 +50,7 @@ public class SolverORTools
         int row = 0;
         int column = 0;
 
-        foreach (ArcImprovedRoute arc in arcs)
+        foreach (ArcImprovedRoute arc in arcsImprovedRoutes)
         {
             if (!arcsFrom.ContainsKey(arc.ArcFrom))
             {
@@ -66,13 +64,11 @@ public class SolverORTools
                 column++;
             }
         }
-        
         return (arcsFrom, arcsTo);
     }
 
     private Assignment Solve(RoutingIndexManager manager, RoutingModel routing, int[,] distanceMatrix)
     {
-        
         int transitCallbackIndex = routing.RegisterTransitCallback((long fromIndex, long toIndex) =>
         {
             int fromNode = manager.IndexToNode(fromIndex);
@@ -83,70 +79,46 @@ public class SolverORTools
 
         RoutingSearchParameters searchParameters = operations_research_constraint_solver.DefaultRoutingSearchParameters();
         searchParameters.FirstSolutionStrategy = FirstSolutionStrategy.Types.Value.PathCheapestArc;
-        searchParameters.TimeLimit = new Duration { Seconds = _timeLimitSeconds };
+        searchParameters.TimeLimit = new Duration { Seconds = _timeLimitForSolutionSeconds };
 
         return routing.SolveWithParameters(searchParameters);
     }
 
-    private int[,] BuildVariables(RoutingModel routing, Assignment solution, int[,] distanceMatrix)
+    public List<int> GetMaskRoutePoints(List<ArcImprovedRoute> arcsImprovedRoutes, string maskStart, string maskEnd)
     {
-        long index = routing.Start(0);
-        int amount = distanceMatrix.GetLength(0);
-        int [,] variables = new int[amount, amount];
-        long previousIndex;
+        (Dictionary<string, int> arcsFrom, Dictionary<string, int> arcsTo) = CreateNumbersPoints(arcsImprovedRoutes);
 
-        while (routing.IsEnd(index) == false)
-        {
-            previousIndex = index;
-            index = solution.Value(routing.NextVar(index));
-            if (index <= amount-1)
-            {
-                variables[previousIndex, index] = 1;
-            }
-            else
-            {
-                variables[previousIndex, routing.Start(0)] = 1;
-            }
-        }
-        return variables;
-    }
-
-    public (int[,], long) GetSolution(List<ArcImprovedRoute> arcs, string maskStart, string maskEnd)
-    {
-        (Dictionary<string, int> arcsFrom, Dictionary<string, int> arcsTo) = CreateNumbersPoints(arcs);
-
-        int[,] distance = BuldDistance(arcsFrom, arcsTo, arcs);
+        int[,] distance = BuldDistance(arcsFrom, arcsTo, arcsImprovedRoutes);
         int startPoint = arcsFrom[maskStart];
         int endPoint = arcsTo[maskEnd];
-        int count = distance.GetLength(0);
+        int amountNodes = distance.GetLength(0);
         int[] starts = new int [1] { startPoint };
         int[] ends = new int [1] { endPoint };
         
-        RoutingIndexManager manager = new RoutingIndexManager(count, _vehicleNumber, starts, ends);
+        RoutingIndexManager manager = new RoutingIndexManager(amountNodes, _amountVehicles, starts, ends);
         RoutingModel routing = new RoutingModel(manager);
         Assignment solution = Solve(manager, routing, distance);
-        int[,] variables = BuildVariables(routing, solution, distance);
-        long objective = solution.ObjectiveValue();
-        return (variables, objective);
+        List<int> routePoints = GetRouteNumberPoints(routing, manager, solution, endPoint);
+        List<string> maskRoutePoints = new List<string>();
+
+        foreach (int point in routePoints)
+        {
+            string mask = arcsFrom.FirstOrDefault(n => n.Value == point).Key;
+            maskRoutePoints.Add(mask);
+        }
+        return routePoints;
     }
     
-    public (int[,], long) GetSolutionOld(List<ArcImprovedRoute> arcs, string maskStart, string maskEnd)
+    private List<int> GetRouteNumberPoints(RoutingModel routing, RoutingIndexManager manager, Assignment solution, int endPoint)
     {
-        (Dictionary<string, int> arcsFrom, Dictionary<string, int> arcsTo) = CreateNumbersPoints(arcs);
-
-        int[,] distance = BuldDistance(arcsFrom, arcsTo, arcs);
-        int startPoint = arcsFrom[maskStart];
-        int endPoint = arcsTo[maskEnd];
-        int count = distance.GetLength(0);
-        int[] starts = new int [1] { startPoint };
-        int[] ends = new int [1] { endPoint };
-        
-        RoutingIndexManager manager = new RoutingIndexManager(count, _vehicleNumber, starts, ends);
-        RoutingModel routing = new RoutingModel(manager);
-        Assignment solution = Solve(manager, routing, distance);
-        int[,] variables = BuildVariables(routing, solution, distance);
-        long objective = solution.ObjectiveValue();
-        return (variables, objective);
+        List<int> routeNumberPoints = new List<int>();
+        long index = routing.Start(0);
+        while (!routing.IsEnd(index))
+        {
+            routeNumberPoints.Add(manager.IndexToNode((int)index));
+            index = solution.Value(routing.NextVar(index));
+        }
+        routeNumberPoints.Add(endPoint);
+        return routeNumberPoints;
     }
-
 }
