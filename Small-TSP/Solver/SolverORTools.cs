@@ -9,11 +9,12 @@ public class SolverORTools
     private static int _amountVehicles = 1;
     private static int _timeLimitForSolutionSeconds = 1;
     
-    private int GetDist(string arcFrom, string arcTo, List<ArcImprovedRoute> arcs)
+    private int GetDist(GeoPoint pointFrom, GeoPoint pointTo, List<ArcImprovedRoute> arcs)
     {
         int result = 0;
         IEnumerable<int> distance = arcs
-            .Where(a => a.ArcFrom.Equals(arcFrom) && a.ArcTo.Equals(arcTo))
+            .Where(a => a.PointFrom.Equals(pointFrom) 
+                        && a.PointTo.Equals(pointTo))
             .Select(d => d.Distance);
         
         foreach (int d in distance)
@@ -23,44 +24,39 @@ public class SolverORTools
         return result;
     }
 
-    private int[,] BuldDistance(Dictionary<string, int> arcsFrom, Dictionary<string, int> arcsTo, List<ArcImprovedRoute> arcsImprovedRoutes)
+    private int[,] BuldDistance(Dictionary<int, GeoPoint> arcsFrom, Dictionary<int, GeoPoint> arcsTo, List<ArcImprovedRoute> arcsImprovedRoutes)
     {
         int[,] distance = new int[arcsFrom.Count, arcsTo.Count];
-        int row = 0;
-        int column = 0;
         
-        foreach (string arcFrom in arcsFrom.Keys)
+        foreach (int row in arcsFrom.Keys)
         {
-            foreach (string arcTo in arcsTo.Keys)
+            foreach (int column in arcsTo.Keys)
             {
-                distance[row, column] = GetDist(arcFrom, arcTo, arcsImprovedRoutes);
-                column++;
+                distance[row, column] = GetDist(arcsFrom[row], arcsTo[column], arcsImprovedRoutes);
             }
-            row++;
-            column = 0;
         }
         return distance;
     }
 
-    private (Dictionary<string, int> arcsFrom, Dictionary<string, int> arcsTo)  CreateNumbersPoints(List<ArcImprovedRoute> arcsImprovedRoutes)
+    public (Dictionary<int, GeoPoint> arcsFrom, Dictionary<int, GeoPoint> arcsTo)  CreateNumbersPoints(List<ArcImprovedRoute> arcsImprovedRoutes)
     {
-        Dictionary<string, int> arcsFrom = new Dictionary<string, int>();
-        Dictionary<string, int> arcsTo = new Dictionary<string, int>();
+        Dictionary<int, GeoPoint> arcsFrom = new Dictionary<int, GeoPoint>();
+        Dictionary<int, GeoPoint> arcsTo = new Dictionary<int, GeoPoint>();
         
         int row = 0;
         int column = 0;
 
         foreach (ArcImprovedRoute arc in arcsImprovedRoutes)
         {
-            if (!arcsFrom.ContainsKey(arc.ArcFrom))
+            if (!arcsFrom.ContainsValue(arc.PointFrom))
             {
-                arcsFrom.Add(arc.ArcFrom, row);
+                arcsFrom.Add(row, arc.PointFrom);
                 row++;
             }
-
-            if (!arcsTo.ContainsKey(arc.ArcTo))
+            
+            if (!arcsTo.ContainsValue(arc.PointTo))
             {
-                arcsTo.Add(arc.ArcTo, column);
+                arcsTo.Add(column, arc.PointTo);
                 column++;
             }
         }
@@ -84,13 +80,13 @@ public class SolverORTools
         return routing.SolveWithParameters(searchParameters);
     }
 
-    public List<int> GetMaskRoutePoints(List<ArcImprovedRoute> arcsImprovedRoutes, string maskStart, string maskEnd)
+    public List<int> GetMaskRoutePoints(List<ArcImprovedRoute> arcsImprovedRoutes, GeoPoint pointStart, GeoPoint pointEnd)
     {
-        (Dictionary<string, int> arcsFrom, Dictionary<string, int> arcsTo) = CreateNumbersPoints(arcsImprovedRoutes);
+        (Dictionary<int, GeoPoint> arcsFrom, Dictionary<int, GeoPoint> arcsTo) = CreateNumbersPoints(arcsImprovedRoutes);
 
         int[,] distance = BuldDistance(arcsFrom, arcsTo, arcsImprovedRoutes);
-        int startPoint = arcsFrom[maskStart];
-        int endPoint = arcsTo[maskEnd];
+        int startPoint = arcsFrom.FirstOrDefault(p => p.Value.Equals(pointStart)).Key;
+        int endPoint = arcsFrom.FirstOrDefault(p => p.Value.Equals(pointEnd)).Key;
         int amountNodes = distance.GetLength(0);
         int[] starts = new int [1] { startPoint };
         int[] ends = new int [1] { endPoint };
@@ -99,13 +95,6 @@ public class SolverORTools
         RoutingModel routing = new RoutingModel(manager);
         Assignment solution = Solve(manager, routing, distance);
         List<int> routePoints = GetRouteNumberPoints(routing, manager, solution, endPoint);
-        List<string> maskRoutePoints = new List<string>();
-
-        foreach (int point in routePoints)
-        {
-            string mask = arcsFrom.FirstOrDefault(n => n.Value == point).Key;
-            maskRoutePoints.Add(mask);
-        }
         return routePoints;
     }
     
@@ -121,4 +110,5 @@ public class SolverORTools
         routeNumberPoints.Add(endPoint);
         return routeNumberPoints;
     }
+
 }
