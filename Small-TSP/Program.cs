@@ -19,7 +19,7 @@ class Program
         List<ArcImprovedRoute> arcsImprovedRoutes = serializer.Deserialize<List<ArcImprovedRoute>>(data);
 
         SolverORTools solver = new SolverORTools();
-        (Dictionary<int, GeoPoint> arcsFrom, Dictionary<int, GeoPoint> arcsTo) = solver.CreateNumbersPoints(arcsImprovedRoutes);
+        //(Dictionary<int, GeoPoint> arcsFrom, Dictionary<int, GeoPoint> arcsTo) = solver.CreateNumbersPoints(arcsImprovedRoutes);
         
         double xStart = 55.809762;
         double yStart = 37.392311;

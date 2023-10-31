@@ -24,44 +24,40 @@ public class SolverORTools
         return result;
     }
 
-    private int[,] BuldDistance(Dictionary<int, GeoPoint> arcsFrom, Dictionary<int, GeoPoint> arcsTo, List<ArcImprovedRoute> arcsImprovedRoutes)
+    private int[,] BuldDistance(Dictionary<int, GeoPoint> points, List<ArcImprovedRoute> arcsImprovedRoutes)
     {
-        int[,] distance = new int[arcsFrom.Count, arcsTo.Count];
+        int[,] distance = new int[points.Count, points.Count];
         
-        foreach (int row in arcsFrom.Keys)
+        foreach (int row in points.Keys)
         {
-            foreach (int column in arcsTo.Keys)
+            foreach (int column in points.Keys)
             {
-                distance[row, column] = GetDist(arcsFrom[row], arcsTo[column], arcsImprovedRoutes);
+                distance[row, column] = GetDist(points[row], points[column], arcsImprovedRoutes);
             }
         }
         return distance;
     }
 
-    public (Dictionary<int, GeoPoint> arcsFrom, Dictionary<int, GeoPoint> arcsTo)  CreateNumbersPoints(List<ArcImprovedRoute> arcsImprovedRoutes)
+    public Dictionary<int, GeoPoint> CreateNumbersPoints(List<ArcImprovedRoute> arcsImprovedRoutes)
     {
-        Dictionary<int, GeoPoint> arcsFrom = new Dictionary<int, GeoPoint>();
-        Dictionary<int, GeoPoint> arcsTo = new Dictionary<int, GeoPoint>();
-        
-        int row = 0;
-        int column = 0;
+        Dictionary<int, GeoPoint> points = new Dictionary<int, GeoPoint>();
+        int number = 0;
 
         foreach (ArcImprovedRoute arc in arcsImprovedRoutes)
         {
-            if (!arcsFrom.ContainsValue(arc.PointFrom))
+            if (!points.ContainsValue(arc.PointFrom))
             {
-                arcsFrom.Add(row, arc.PointFrom);
-                row++;
+                points.Add(number, arc.PointFrom);
+                number++;
             }
             
-            if (!arcsTo.ContainsValue(arc.PointTo))
+            if (!points.ContainsValue(arc.PointTo))
             {
-                arcsTo.Add(column, arc.PointTo);
-                column++;
+                points.Add(number, arc.PointTo);
+                number++;
             }
-            
         }
-        return (arcsFrom, arcsTo);
+        return points;
     }
 
     private Assignment Solve(RoutingIndexManager manager, RoutingModel routing, int[,] distanceMatrix)
@@ -83,11 +79,11 @@ public class SolverORTools
 
     public List<int> GetRoutePoints(List<ArcImprovedRoute> arcsImprovedRoutes, GeoPoint pointStart, GeoPoint pointEnd)
     {
-        (Dictionary<int, GeoPoint> arcsFrom, Dictionary<int, GeoPoint> arcsTo) = CreateNumbersPoints(arcsImprovedRoutes);
+        Dictionary<int, GeoPoint> points = CreateNumbersPoints(arcsImprovedRoutes);
 
-        int[,] distance = BuldDistance(arcsFrom, arcsTo, arcsImprovedRoutes);
-        int startPoint = arcsFrom.FirstOrDefault(p => p.Value.Equals(pointStart)).Key;
-        int endPoint = arcsFrom.FirstOrDefault(p => p.Value.Equals(pointEnd)).Key;
+        int[,] distance = BuldDistance(points, arcsImprovedRoutes);
+        int startPoint = points.FirstOrDefault(p => p.Value.Equals(pointStart)).Key;
+        int endPoint = points.FirstOrDefault(p => p.Value.Equals(pointEnd)).Key;
         int amountNodes = distance.GetLength(0);
         int[] starts = new int [1] { startPoint };
         int[] ends = new int [1] { endPoint };
