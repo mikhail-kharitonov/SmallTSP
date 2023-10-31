@@ -29,14 +29,13 @@ class Program
         GeoPoint pointEnd = new GeoPoint(xEnd, yEnd);
         
         
-        List<int> solution = solver.GetMaskRoutePoints(arcsImprovedRoutes, pointStart, pointEnd);
+        List<int> solution = solver.GetRoutePoints(arcsImprovedRoutes, pointStart, pointEnd);
         Console.WriteLine($"\nMy solution");
         foreach (int item in solution)
         {
             Console.Write($"{item} -> ");
         }
         
-
     }
 }
 

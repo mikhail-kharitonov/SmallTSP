@@ -7,7 +7,7 @@ namespace Small_TSP.Solver;
 public class SolverORTools
 {
     private static int _amountVehicles = 1;
-    private static int _timeLimitForSolutionSeconds = 1;
+    private static int _timeLimitForSolutionSeconds = 1;//maxTimeFromImprovment....
     
     private int GetDist(GeoPoint pointFrom, GeoPoint pointTo, List<ArcImprovedRoute> arcs)
     {
@@ -59,6 +59,7 @@ public class SolverORTools
                 arcsTo.Add(column, arc.PointTo);
                 column++;
             }
+            
         }
         return (arcsFrom, arcsTo);
     }
@@ -80,7 +81,7 @@ public class SolverORTools
         return routing.SolveWithParameters(searchParameters);
     }
 
-    public List<int> GetMaskRoutePoints(List<ArcImprovedRoute> arcsImprovedRoutes, GeoPoint pointStart, GeoPoint pointEnd)
+    public List<int> GetRoutePoints(List<ArcImprovedRoute> arcsImprovedRoutes, GeoPoint pointStart, GeoPoint pointEnd)
     {
         (Dictionary<int, GeoPoint> arcsFrom, Dictionary<int, GeoPoint> arcsTo) = CreateNumbersPoints(arcsImprovedRoutes);
 
@@ -95,6 +96,7 @@ public class SolverORTools
         RoutingModel routing = new RoutingModel(manager);
         Assignment solution = Solve(manager, routing, distance);
         List<int> routePoints = GetRouteNumberPoints(routing, manager, solution, endPoint);
+        //Console.WriteLine($"{solution.ObjectiveValue()}");
         return routePoints;
     }
     
@@ -110,5 +112,28 @@ public class SolverORTools
         routeNumberPoints.Add(endPoint);
         return routeNumberPoints;
     }
+    
+    private int[,] BuildOptimalRouteMatrix(RoutingModel routing, Assignment solution, int[,] distanceMatrix)
+    {
+        long index = routing.Start(0);
+        int amount = distanceMatrix.GetLength(0);
+        int [,] optimalRouteMatrix = new int[amount, amount];
+        long previousIndex;
 
+        while (routing.IsEnd(index) == false)
+        {
+            previousIndex = index;
+            index = solution.Value(routing.NextVar(index));
+            if (index <= amount-1)
+            {
+                optimalRouteMatrix[previousIndex, index] = 1;
+            }
+            else
+            {
+                optimalRouteMatrix[previousIndex, routing.Start(0)] = 1;
+            }
+        }
+        return optimalRouteMatrix;
+    }
+    
 }
