@@ -11,7 +11,7 @@ class Program
 {
     public static void Main(string[] args)
     {
-        string path = "C:\\Users\\mikhail\\Axelot\\Small-TSP\\data";//"/home/mikhail/RiderProjects/SmallTSP/data/111.json";
+        string path = "/home/mikhail/RiderProjects/SmallTSP/data/";
         IFileManager fileManager = new FileManager();
         fileManager.Initialize(path);
         string[] files = fileManager.GetFileNames();

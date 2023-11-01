@@ -7,7 +7,7 @@ namespace Small_TSP.Solver;
 public class SolverORTools
 {
     private static int _amountVehicles = 1;
-    private static int _timeLimitForSolutionSeconds = 1;//maxTimeFromImprovment....
+    private static int _timeLimitForSolutionSeconds = 10;//maxTimeFromImprovment....
     
     private int GetDist(GeoPoint pointFrom, GeoPoint pointTo, List<ArcImprovedRoute> arcs)
     {
@@ -83,6 +83,23 @@ public class SolverORTools
         }
         return points;
     }
+    private Assignment Solve1(RoutingIndexManager manager, RoutingModel routing, int[,] distanceMatrix, Assignment initialSolution)
+    {
+        int transitCallbackIndex = routing.RegisterTransitCallback((long fromIndex, long toIndex) =>
+        {
+            int fromNode = manager.IndexToNode(fromIndex);
+            int toNode = manager.IndexToNode(toIndex);
+            return distanceMatrix[fromNode, toNode];
+        });
+        routing.SetArcCostEvaluatorOfAllVehicles(transitCallbackIndex);
+       // solution = routing.SolveFromAssignmentWithParameters(initial_solution, search_parameters)
+        RoutingSearchParameters searchParameters = operations_research_constraint_solver.DefaultRoutingSearchParameters();
+        searchParameters.FirstSolutionStrategy = FirstSolutionStrategy.Types.Value.PathCheapestArc;
+        searchParameters.TimeLimit = new Duration { Seconds = _timeLimitForSolutionSeconds };
+        return routing.SolveFromAssignmentWithParameters(initialSolution, searchParameters);
+        //return routing.SolveWithParameters(initial_solution, searchParameters);
+    }
+    
     private Assignment Solve(RoutingIndexManager manager, RoutingModel routing, int[,] distanceMatrix)
     {
         int transitCallbackIndex = routing.RegisterTransitCallback((long fromIndex, long toIndex) =>
@@ -92,11 +109,11 @@ public class SolverORTools
             return distanceMatrix[fromNode, toNode];
         });
         routing.SetArcCostEvaluatorOfAllVehicles(transitCallbackIndex);
-
+        // solution = routing.SolveFromAssignmentWithParameters(initial_solution, search_parameters)
         RoutingSearchParameters searchParameters = operations_research_constraint_solver.DefaultRoutingSearchParameters();
         searchParameters.FirstSolutionStrategy = FirstSolutionStrategy.Types.Value.PathCheapestArc;
         searchParameters.TimeLimit = new Duration { Seconds = _timeLimitForSolutionSeconds };
-
+        //return routing.SolveFromAssignmentWithParameters(initialSolution, searchParameters);
         return routing.SolveWithParameters(searchParameters);
     }
 
@@ -158,30 +175,29 @@ public class SolverORTools
 
     public int GetInitialSolution(List<ArcImprovedRoute> arcsImprovedRoutes, GeoPoint pointStart, GeoPoint pointEnd, List<GeoPoint> initialRoutesVRP)
     {
+        
         Dictionary<int, GeoPoint> points = CreateNumbersPoints(arcsImprovedRoutes);
-
+        //
+        List<long> initial = BuldInitialRoutes(points, initialRoutesVRP);
+        initial.RemoveAt(0);
+        initial.RemoveAt(initial.Count-1);
+        long[][] initialRoutes = new long[1][]{initial.ToArray()};
+        //
         int[,] distance = BuldDistance(points, arcsImprovedRoutes);
         int startPoint = points.FirstOrDefault(p => p.Value.Equals(pointStart)).Key;
         int endPoint = points.FirstOrDefault(p => p.Value.Equals(pointEnd)).Key;
         int amountNodes = distance.GetLength(0);
         int[] starts = new int [1] { startPoint };
         int[] ends = new int [1] { endPoint };
-        //Начальный маршрут не содержит депо.
-        //Удаляем первый и последний элементы списка
-        List<long> initial = BuldInitialRoutes(points, initialRoutesVRP);
-        initial.RemoveAt(0);
-        initial.RemoveAt(initial.Count-1);
-        long[][] initialRoutes = new long[1][]{initial.ToArray()};
         
         RoutingIndexManager manager = new RoutingIndexManager(amountNodes, _amountVehicles, starts, ends);
         RoutingModel routing = new RoutingModel(manager);
-        Assignment initialSolution = routing.ReadAssignmentFromRoutes(initialRoutes, true);
-        
-        //Assignment solution = Solve(manager, routing, distance);
-        List<int> routePoints = GetRouteNumberPoints(routing, manager, initialSolution, endPoint);
+        Assignment initialSolution = routing.ReadAssignmentFromRoutes(initialRoutes, false);
+
+        Assignment solution = Solve1(manager, routing, distance, initialSolution);
+        List<int> routePoints = GetRouteNumberPoints(routing, manager, solution, endPoint);
         //Console.WriteLine($"{solution.ObjectiveValue()}");
-        return (int)initialSolution.ObjectiveValue(); //routePoints;
-        //return (int)initialSolution.ObjectiveValue();
+        return (int)solution.ObjectiveValue(); //routePoints;
     }
     
     
